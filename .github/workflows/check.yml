@@ -1,0 +1,56 @@
+name: Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+
+jobs:
+  main:
+    name: Check code base
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [16]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache node_modules
+        id: cache-node_modules
+        uses: actions/cache@v2
+        with:
+          path: node_modules
+          key: node_modules-${{ matrix.os }}-${{ matrix.node-version }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Run Super-Linter
+        uses: github/super-linter@v4
+        env:
+          NODE_ENV: production
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          LINTER_RULES_PATH: /
+          TYPESCRIPT_ES_CONFIG_FILE: .eslintrc.json
+          VALIDATE_TYPESCRIPT_ES: true
+
+      - name: Run Prettier
+        uses: creyD/prettier_action@v4.2
+        with:
+          prettier_options: --write **/*.{js,md}
+          only_changed: True
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Build
+        run: yarn run build
